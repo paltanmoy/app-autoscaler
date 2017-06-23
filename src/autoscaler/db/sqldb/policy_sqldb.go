@@ -1,9 +1,10 @@
 package sqldb
 
 import (
-	"code.cloudfoundry.org/lager"
 	"database/sql"
 	"encoding/json"
+
+	"code.cloudfoundry.org/lager"
 	_ "github.com/lib/pq"
 
 	"autoscaler/db"

@@ -4,7 +4,7 @@ cf:
   username: admin
   password: admin
 server:
-  port: 8080
+  port: 8082
 logging:
   level: debug
 db:
@@ -13,7 +13,11 @@ db:
 collector:
   refresh_interval: 30s
   collect_interval: 10s
-# lock:
+#lock:
 #   lock_ttl: 15s
 #   lock_retry_interval: 10s
 #   consul_cluster_config: http://127.0.0.1:8500
+dblock:
+  type: metrics_collector
+  ttl: 30
+  lockdb_url: postgres://postgres:postgres@localhost/autoscaler?sslmode=disable

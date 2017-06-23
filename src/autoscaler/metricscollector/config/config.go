@@ -65,6 +65,13 @@ type LockConfig struct {
 	ConsulClusterConfig string        `yaml:"consul_cluster_config"`
 }
 
+type DBLockConfig struct {
+	Type      string `yaml:"type"`
+	Owner     string `yaml:"owner"`
+	LockTTL   string `yaml:"ttl"`
+	LockDBURL string `yaml:"lockdb_url"`
+}
+
 var defaultLockConfig = LockConfig{
 	LockTTL:           DefaultLockTTL,
 	LockRetryInterval: DefaultRetryInterval,
@@ -77,6 +84,7 @@ type Config struct {
 	Db        DbConfig        `yaml:"db"`
 	Collector CollectorConfig `yaml:"collector"`
 	Lock      LockConfig      `yaml:"lock"`
+	DBLock    DBLockConfig    `yaml:"dblock"`
 }
 
 func LoadConfig(reader io.Reader) (*Config, error) {
