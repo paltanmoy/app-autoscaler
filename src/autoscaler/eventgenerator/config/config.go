@@ -63,6 +63,13 @@ type LockConfig struct {
 	ConsulClusterConfig string        `yaml:"consul_cluster_config"`
 }
 
+type DBLockConfig struct {
+	Type      string `yaml:"type"`
+	Owner     string `yaml:"owner"`
+	LockTTL   string `yaml:"ttl"`
+	LockDBURL string `yaml:"lockdb_url"`
+}
+
 type Config struct {
 	Logging         LoggingConfig         `yaml:"logging"`
 	DB              DBConfig              `yaml:"db"`
@@ -71,6 +78,7 @@ type Config struct {
 	ScalingEngine   ScalingEngineConfig   `yaml:"scalingEngine"`
 	MetricCollector MetricCollectorConfig `yaml:"metricCollector"`
 	Lock            LockConfig            `yaml:"lock"`
+	DBLock          DBLockConfig          `yaml:"dblock"`
 }
 
 func LoadConfig(bytes []byte) (*Config, error) {

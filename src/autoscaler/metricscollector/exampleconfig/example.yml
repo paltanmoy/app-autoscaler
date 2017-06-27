@@ -4,12 +4,12 @@ cf:
   username: admin
   password: admin
 server:
-  port: 8082
+  port: 8083
 logging:
   level: debug
 db:
-  policy_db_url: postgres://postgres:postgres@localhost/autoscaler?sslmode=disable
-  instance_metrics_db_url: postgres://postgres:postgres@localhost/autoscaler?sslmode=disable
+  policy_db_url: postgres://postgres:postgres@10.0.2.2/autoscaler?sslmode=disable
+  instance_metrics_db_url: postgres://postgres:postgres@10.0.2.2/autoscaler?sslmode=disable
 collector:
   refresh_interval: 30s
   collect_interval: 10s
@@ -20,4 +20,4 @@ collector:
 dblock:
   type: metrics_collector
   ttl: 30
-  lockdb_url: postgres://postgres:postgres@localhost/autoscaler?sslmode=disable
+  lockdb_url: postgres://postgres:postgres@10.0.2.2/autoscaler?sslmode=disable

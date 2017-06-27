@@ -13,12 +13,16 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
+	"strings"
+	"time"
 
 	"code.cloudfoundry.org/cfhttp"
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/consuladapter"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/locket"
+	cfenv "github.com/cloudfoundry-community/go-cfenv"
 	"github.com/hashicorp/consul/api"
 	uuid "github.com/nu7hatch/gouuid"
 	"github.com/tedsuo/ifrit"
@@ -129,6 +133,69 @@ func main() {
 		members = append(grouper.Members{{"lock-maintainer", lockMaintainer}}, members...)
 		members = append(members, grouper.Member{"registration", registrationRunner})
 	}
+
+	var lockDB db.LockDB
+
+	lockDB, err = sqldb.NewLockSQLDB(conf.DBLock.LockDBURL, logger.Session("lock-db"))
+	if err != nil {
+		logger.Error("failed to connect lock database", err, lager.Data{"url": conf.DBLock.LockDBURL})
+		os.Exit(1)
+	}
+	defer lockDB.Close()
+
+	dbLockMaintainer := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
+		ttl, err := strconv.Atoi(conf.DBLock.LockTTL)
+		if err != nil {
+			logger.Info("Failed to convert ttl")
+		}
+		lockTicker := time.NewTicker(time.Duration(ttl) * time.Second)
+		acquireLockflag := true
+		owner := getOwner(logger, conf)
+		keytype := conf.DBLock.Type
+		fmt.Println("******************************* Acquiring Lock ******************************")
+		lock := models.Lock{Type: keytype, Owner: owner, Last_Modified_Timestamp: time.Now().Unix(), Ttl: ttl}
+		isLockAcquired, lockErr := lockDB.AcquireLock(lock)
+		if lockErr != nil {
+			logger.Error("Lock Error", lockErr)
+		}
+		if isLockAcquired {
+			fmt.Println("******************** I am ready with lock , relinquishing the ocntroil over the next process****************************")
+			close(ready)
+			acquireLockflag = false
+			fmt.Println("************************* Lock Acquired on fisrt attempt?  =  ", isLockAcquired, "*****************************************")
+		}
+		fmt.Println("*************************** Inside Go routine ******************************")
+		for {
+			select {
+			case <-signals:
+				fmt.Println("************************** Lets quit  **********************")
+				lockTicker.Stop()
+				releaseErr := lockDB.ReleaseLock(owner)
+				if releaseErr != nil {
+					logger.Error("Lock Error", releaseErr)
+				}
+				acquireLockflag = true
+				fmt.Println("*************************Releasing lock**************************")
+				return nil
+
+			case <-lockTicker.C:
+				fmt.Println("********************************* retrying-acquiring-lock ************************************")
+				lock := models.Lock{Type: keytype, Owner: owner, Last_Modified_Timestamp: time.Now().Unix(), Ttl: ttl}
+				isLockAcquired, lockErr := lockDB.AcquireLock(lock)
+				if lockErr != nil {
+					logger.Error("Lock Error", lockErr)
+				}
+				fmt.Println("************************* Lock Acquired ?  =  ", isLockAcquired, "*****************************************")
+				if isLockAcquired && acquireLockflag {
+					fmt.Println("******************** I am ready with lock****************************")
+					close(ready)
+					acquireLockflag = false
+				}
+			}
+		}
+	})
+
+	members = append(grouper.Members{{"db-lock-maintainer", dbLockMaintainer}}, members...)
 
 	monitor := ifrit.Invoke(sigmon.New(grouper.NewOrdered(os.Interrupt, members)))
 
@@ -266,4 +333,21 @@ func generateGUID(logger lager.Logger) string {
 		logger.Fatal("Couldn't generate uuid", err)
 	}
 	return uuid.String()
+}
+
+func getOwner(logger lager.Logger, conf *config.Config) string {
+	var owner string
+	if strings.TrimSpace(os.Getenv("VCAP_APPLICATION")) != "" {
+		logger.Info("Running on CF")
+		appEnv, _ := cfenv.Current()
+		fmt.Println("ID:", appEnv.ID)
+		owner = appEnv.ID
+	} else if conf.DBLock.Owner != "" {
+		logger.Info("Running on VM throgh BOSH Release")
+		owner = conf.DBLock.Owner
+	} else {
+		logger.Info("Running from binary")
+		owner = generateGUID(logger)
+	}
+	return owner
 }
