@@ -99,6 +99,12 @@ lock:
   lock_ttl: 15s
   lock_retry_interval: 10s
   consul_cluster_config: http://127.0.0.1:8500
+enable_db_lock: true
+dblock:
+  owner: 8c6153e2-5399-4130-b7f8-e3e9d2dfee8c
+  type: metrics_collector
+  ttl: 30s
+  lockdb_url: postgres://pqgotest:password@localhost/pqgotest
 `)
 			})
 
@@ -130,6 +136,12 @@ lock:
 				Expect(conf.Lock.ConsulClusterConfig).To(Equal("http://127.0.0.1:8500"))
 				Expect(conf.Lock.LockRetryInterval).To(Equal(10 * time.Second))
 				Expect(conf.Lock.LockTTL).To(Equal(15 * time.Second))
+
+				Expect(conf.DBLock.LockDBURL).To(Equal("postgres://pqgotest:password@localhost/pqgotest"))
+				Expect(conf.DBLock.LockTTL).To(Equal(30 * time.Second))
+				Expect(conf.DBLock.Owner).To(Equal("8c6153e2-5399-4130-b7f8-e3e9d2dfee8c"))
+				Expect(conf.DBLock.Type).To(Equal("metrics_collector"))
+				Expect(conf.EnableDBLock).To(Equal(true))
 			})
 		})
 
@@ -156,9 +168,9 @@ db:
 
 				Expect(conf.Lock.LockRetryInterval).To(Equal(DefaultRetryInterval))
 				Expect(conf.Lock.LockTTL).To(Equal(DefaultLockTTL))
+				Expect(conf.EnableDBLock).To(Equal(false))
 			})
 		})
-
 	})
 
 	Describe("Validate", func() {
@@ -173,6 +185,10 @@ db:
 			conf.Collector.CollectInterval = time.Duration(30 * time.Second)
 			conf.Collector.RefreshInterval = time.Duration(60 * time.Second)
 			conf.Collector.CollectMethod = CollectMethodPolling
+			conf.DBLock.LockDBURL = "postgres://pqgotest:password@exampl.com/pqgotest"
+			conf.DBLock.LockTTL = time.Duration(30 * time.Second)
+			conf.DBLock.Owner = "123456"
+			conf.EnableDBLock = true
 		})
 
 		JustBeforeEach(func() {
@@ -242,6 +258,39 @@ db:
 
 			It("should error", func() {
 				Expect(err).To(MatchError(MatchRegexp("Configuration error: invalid collecting method")))
+			})
+		})
+
+		Context("when lock db url is not set but dblock enabled", func() {
+			BeforeEach(func() {
+				conf.EnableDBLock = true
+				conf.DBLock.LockDBURL = ""
+			})
+
+			It("should error", func() {
+				Expect(err).To(MatchError(MatchRegexp("Configuration error: Lock DB URL is empty")))
+			})
+		})
+
+		Context("when lock ttl is not set but dblock enabled ", func() {
+			BeforeEach(func() {
+				conf.EnableDBLock = true
+				conf.DBLock.LockTTL = time.Duration(0)
+			})
+
+			It("should error", func() {
+				Expect(err).To(MatchError(MatchRegexp("Configuration error: Lock TTL is empty")))
+			})
+		})
+
+		Context("when lock owner is not set but dblock enabled", func() {
+			BeforeEach(func() {
+				conf.EnableDBLock = true
+				conf.DBLock.Owner = ""
+			})
+
+			It("should error", func() {
+				Expect(err).To(MatchError(MatchRegexp("Configuration error: Lock Owner is empty")))
 			})
 		})
 
