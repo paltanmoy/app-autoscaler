@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"autoscaler/cf"
@@ -14,12 +15,14 @@ import (
 	"autoscaler/metricscollector/collector"
 	"autoscaler/metricscollector/config"
 	"autoscaler/metricscollector/server"
+	"autoscaler/models"
 
 	"code.cloudfoundry.org/cfhttp"
 	"code.cloudfoundry.org/clock"
 	"code.cloudfoundry.org/consuladapter"
 	"code.cloudfoundry.org/lager"
 	"code.cloudfoundry.org/locket"
+	cfenv "github.com/cloudfoundry-community/go-cfenv"
 	"github.com/cloudfoundry/noaa/consumer"
 	"github.com/hashicorp/consul/api"
 	"github.com/nu7hatch/gouuid"
@@ -146,6 +149,65 @@ func main() {
 		members = append(grouper.Members{{"lock-maintainer", lockMaintainer}}, members...)
 		members = append(members, grouper.Member{"registration", registrationRunner})
 	}
+	var lockDB db.LockDB
+
+	lockDB, err = sqldb.NewLockSQLDB(conf.DBLock.LockDBURL, logger.Session("lock-db"))
+	if err != nil {
+		logger.Error("failed to connect lock database", err, lager.Data{"url": conf.DBLock.LockDBURL})
+		os.Exit(1)
+	}
+	defer lockDB.Close()
+
+	dbLockMaintainer := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
+		ttl := conf.DBLock.LockTTL
+		lockTicker := time.NewTicker(ttl)
+		acquireLockflag := true
+		owner := getOwner(logger, conf)
+		if owner == "" {
+			logger.Info("failed to get owner details")
+			os.Exit(1)
+		}
+		locktype := conf.DBLock.Type
+		lock := models.Lock{Type: locktype, Owner: owner, Last_Modified_Timestamp: time.Now().Unix(), Ttl: ttl}
+		isLockAcquired, lockErr := lockDB.AcquireLock(lock)
+		if lockErr != nil {
+			logger.Error("failed to acquire lock in first attempt", lockErr)
+		}
+		if isLockAcquired {
+			logger.Info("lock acquired in fisrt attempt", lager.Data{"owner": owner, "type": locktype, "isLockAcquired": isLockAcquired})
+			close(ready)
+			acquireLockflag = false
+		}
+		for {
+			select {
+			case <-signals:
+				logger.Info("received interrupt signal", lager.Data{"owner": owner, "type": locktype})
+				lockTicker.Stop()
+				releaseErr := lockDB.ReleaseLock(owner)
+				if releaseErr != nil {
+					logger.Error("failed to release lock ", releaseErr)
+				}
+				acquireLockflag = true
+				logger.Info("successfully released lock", lager.Data{"owner": owner, "type": locktype})
+				return nil
+
+			case <-lockTicker.C:
+				logger.Info("retrying-acquiring-lock", lager.Data{"owner": owner, "type": locktype})
+				lock := models.Lock{Type: locktype, Owner: owner, Last_Modified_Timestamp: time.Now().Unix(), Ttl: ttl}
+				isLockAcquired, lockErr := lockDB.AcquireLock(lock)
+				if lockErr != nil {
+					logger.Error("failed to acquire lock", lockErr)
+				}
+				if isLockAcquired && acquireLockflag {
+					close(ready)
+					acquireLockflag = false
+					logger.Info("successfully acquired lock", lager.Data{"owner": owner, "type": locktype})
+				}
+			}
+		}
+	})
+
+	members = append(grouper.Members{{"db-lock-maintainer", dbLockMaintainer}}, members...)
 
 	monitor := ifrit.Invoke(sigmon.New(grouper.NewOrdered(os.Interrupt, members)))
 
@@ -207,4 +269,18 @@ func generateGUID(logger lager.Logger) string {
 		logger.Fatal("Couldn't generate uuid", err)
 	}
 	return uuid.String()
+}
+
+func getOwner(logger lager.Logger, conf *config.Config) string {
+	var owner string
+	if strings.TrimSpace(os.Getenv("VCAP_APPLICATION")) != "" {
+		appEnv, _ := cfenv.Current()
+		fmt.Println("ID:", appEnv.ID)
+		owner = appEnv.ID
+		logger.Info("Ownership found in VCAP_APPLICATION", lager.Data{"owner": owner})
+	} else if conf.DBLock.Owner != "" {
+		owner = conf.DBLock.Owner
+		logger.Info("Ownership found in config file", lager.Data{"owner": owner})
+	}
+	return owner
 }

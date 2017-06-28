@@ -163,6 +163,11 @@ var _ = SynchronizedBeforeSuite(func() []byte {
 	cfg.Lock.LockRetryInterval = locket.RetryInterval
 	cfg.Lock.LockTTL = locket.DefaultSessionTTL
 
+	cfg.DBLock.LockDBURL = os.Getenv("DBURL")
+	cfg.DBLock.LockTTL = 30 * time.Second
+	cfg.DBLock.Owner = "0de33792-a27a-4b6f-9920-c7a0980b6dc2"
+	cfg.DBLock.Type = "metrics_collector"
+
 	configFile = writeConfig(&cfg)
 
 	tlsConfig, err := cfhttp.NewTLSConfig(

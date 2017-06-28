@@ -70,6 +70,13 @@ type LockConfig struct {
 	ConsulClusterConfig string        `yaml:"consul_cluster_config"`
 }
 
+type DBLockConfig struct {
+	Type      string        `yaml:"type"`
+	Owner     string        `yaml:"owner"`
+	LockTTL   time.Duration `yaml:"ttl"`
+	LockDBURL string        `yaml:"lockdb_url"`
+}
+
 var defaultLockConfig = LockConfig{
 	LockTTL:           DefaultLockTTL,
 	LockRetryInterval: DefaultRetryInterval,
@@ -82,6 +89,7 @@ type Config struct {
 	Db        DbConfig        `yaml:"db"`
 	Collector CollectorConfig `yaml:"collector"`
 	Lock      LockConfig      `yaml:"lock"`
+	DBLock    DBLockConfig    `yaml:"dblock"`
 }
 
 func LoadConfig(reader io.Reader) (*Config, error) {
@@ -134,6 +142,22 @@ func (c *Config) Validate() error {
 
 	if (c.Collector.CollectMethod != CollectMethodPolling) && (c.Collector.CollectMethod != CollectMethodStreaming) {
 		return fmt.Errorf("Configuration error: invalid collecting method")
+	}
+
+	if c.DBLock.LockDBURL == "" {
+		return fmt.Errorf("Configuration error: Lock DB URL is empty")
+	}
+
+	if c.DBLock.LockTTL == time.Duration(0) {
+		return fmt.Errorf("Configuration error: Lock TTL is empty ")
+	}
+
+	if c.DBLock.Owner == "" {
+		return fmt.Errorf("Configuration error: Lock Owner is empty ")
+	}
+
+	if c.DBLock.Type == "" {
+		return fmt.Errorf("Configuration error: Lock Type is empty ")
 	}
 	return nil
 

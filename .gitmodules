@@ -67,3 +67,9 @@
 [submodule "src/github.com/cloudfoundry/dropsonde"]
 	path = src/github.com/cloudfoundry/dropsonde
 	url = https://github.com/cloudfoundry/dropsonde
+[submodule "src/github.com/cloudfoundry-community/go-cfenv"]
+	path = src/github.com/cloudfoundry-community/go-cfenv
+	url = https://github.com/cloudfoundry-community/go-cfenv
+[submodule "src/github.com/mitchellh/mapstructure"]
+	path = src/github.com/mitchellh/mapstructure
+	url = https://github.com/mitchellh/mapstructure

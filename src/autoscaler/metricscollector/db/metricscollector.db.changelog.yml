@@ -54,3 +54,31 @@ databaseChangeLog:
                  type: bigint                
              indexName: idx_instance_metrics
              tableName: appinstancemetrics
+  - changeSet:
+      id: 2
+      author: paltanmoy
+      changes:
+        - createTable:
+            tableName: locks
+            columns:
+              - column:
+                  name: owner
+                  type: varchar(255)
+                  constraints:
+                    primaryKey: true
+              - column:
+                  name: type
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: lock_timestamp
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: ttl
+                  type: bigint
+                  defaultValue: 0
+                  constraints:
+                    nullable: false
