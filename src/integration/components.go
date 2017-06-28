@@ -351,10 +351,12 @@ func (components *Components) PrepareMetricsCollectorConfig(dbUri string, port i
 			RefreshInterval: refreshInterval,
 			CollectMethod:   collectMethod,
 		},
-		Lock: mcConfig.LockConfig{
-			LockTTL:             lockTTL,
-			LockRetryInterval:   lockRetryInterval,
-			ConsulClusterConfig: ConsulClusterConfig,
+		Lock: mcConfig.LockConfig{},
+		DBLock: mcConfig.DBLockConfig{
+			Type:      "metrics_collector",
+			Owner:     "abcdefghijkl",
+			LockTTL:   30 * time.Second,
+			LockDBURL: dbUri,
 		},
 	}
 
