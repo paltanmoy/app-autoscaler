@@ -203,9 +203,10 @@ func initDBLockRunner(conf *config.Config, logger lager.Logger, lockDB db.LockDB
 				releaseErr := lockDB.Release(owner)
 				if releaseErr != nil {
 					logger.Error("failed-to-release-lock ", releaseErr)
+				} else {
+					logger.Info("successfully-released-lock", lager.Data{"owner": owner})
 				}
 				readyFlag = true
-				logger.Info("successfully-released-lock", lager.Data{"owner": owner})
 				return nil
 
 			case <-lockTicker.C:
@@ -214,6 +215,13 @@ func initDBLockRunner(conf *config.Config, logger lager.Logger, lockDB db.LockDB
 				isLockAcquired, lockErr := lockDB.Lock(lock)
 				if lockErr != nil {
 					logger.Error("failed-to-acquire-lock", lockErr)
+					releaseErr := lockDB.Release(owner)
+					if releaseErr != nil {
+						logger.Error("failed-to-release-lock ", releaseErr)
+					} else {
+						logger.Info("successfully-released-lock", lager.Data{"owner": owner})
+					}
+					os.Exit(1)
 				}
 				if isLockAcquired && readyFlag {
 					close(ready)

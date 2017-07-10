@@ -102,7 +102,6 @@ lock:
 enable_db_lock: true
 dblock:
   owner: 8c6153e2-5399-4130-b7f8-e3e9d2dfee8c
-  type: metrics_collector
   ttl: 30s
   lockdb_url: postgres://pqgotest:password@localhost/pqgotest
 `)
@@ -140,7 +139,6 @@ dblock:
 				Expect(conf.DBLock.LockDBURL).To(Equal("postgres://pqgotest:password@localhost/pqgotest"))
 				Expect(conf.DBLock.LockTTL).To(Equal(30 * time.Second))
 				Expect(conf.DBLock.Owner).To(Equal("8c6153e2-5399-4130-b7f8-e3e9d2dfee8c"))
-				Expect(conf.DBLock.Type).To(Equal("metrics_collector"))
 				Expect(conf.EnableDBLock).To(Equal(true))
 			})
 		})
