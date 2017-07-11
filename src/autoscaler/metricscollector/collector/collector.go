@@ -3,10 +3,11 @@ package collector
 import (
 	"autoscaler/db"
 
-	"code.cloudfoundry.org/clock"
-	"code.cloudfoundry.org/lager"
 	"sync"
 	"time"
+
+	"code.cloudfoundry.org/clock"
+	"code.cloudfoundry.org/lager"
 )
 
 type AppCollector interface {
@@ -90,8 +91,7 @@ func (c *Collector) refreshApps() {
 func (c *Collector) Stop() {
 	if c.ticker != nil {
 		c.ticker.Stop()
-		close(c.doneChan)
-
+		c.doneChan <- true
 		c.lock.Lock()
 		for _, ap := range c.appCollectors {
 			ap.Stop()

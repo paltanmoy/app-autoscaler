@@ -31,6 +31,8 @@ import (
 	"github.com/tedsuo/ifrit/sigmon"
 )
 
+var mc *collector.Collector
+
 func main() {
 	var path string
 	flag.StringVar(&path, "c", "", "config file")
@@ -108,7 +110,7 @@ func main() {
 	}
 
 	collectServer := ifrit.RunFunc(func(signals <-chan os.Signal, ready chan<- struct{}) error {
-		mc := collector.NewCollector(conf.Collector.RefreshInterval, logger.Session("collector"), policyDB, mcClock, createAppCollector)
+		mc = collector.NewCollector(conf.Collector.RefreshInterval, logger.Session("collector"), policyDB, mcClock, createAppCollector)
 		mc.Start()
 
 		close(ready)
@@ -180,6 +182,7 @@ func initDBLockRunner(conf *config.Config, logger lager.Logger, lockDB db.LockDB
 		ttl := conf.DBLock.LockTTL
 		lockTicker := time.NewTicker(ttl)
 		readyFlag := true
+		stopFlag := false
 		owner := getOwner(logger, conf)
 		if owner == "" {
 			logger.Info("failed-to-get-owner-details")
@@ -203,9 +206,10 @@ func initDBLockRunner(conf *config.Config, logger lager.Logger, lockDB db.LockDB
 				releaseErr := lockDB.Release(owner)
 				if releaseErr != nil {
 					logger.Error("failed-to-release-lock ", releaseErr)
+				} else {
+					logger.Info("successfully-released-lock", lager.Data{"owner": owner})
 				}
 				readyFlag = true
-				logger.Info("successfully-released-lock", lager.Data{"owner": owner})
 				return nil
 
 			case <-lockTicker.C:
@@ -214,11 +218,25 @@ func initDBLockRunner(conf *config.Config, logger lager.Logger, lockDB db.LockDB
 				isLockAcquired, lockErr := lockDB.Lock(lock)
 				if lockErr != nil {
 					logger.Error("failed-to-acquire-lock", lockErr)
+					releaseErr := lockDB.Release(owner)
+					if releaseErr != nil {
+						logger.Error("failed-to-release-lock ", releaseErr)
+					} else {
+						logger.Info("successfully-released-lock", lager.Data{"owner": owner})
+					}
+					if !stopFlag {
+						mc.Stop()
+						stopFlag = true
+					}
 				}
 				if isLockAcquired && readyFlag {
 					close(ready)
 					readyFlag = false
 					logger.Info("successfully-acquired-lock", lager.Data{"owner": owner})
+				}
+				if isLockAcquired && stopFlag {
+					mc.Start()
+					stopFlag = false
 				}
 			}
 		}
