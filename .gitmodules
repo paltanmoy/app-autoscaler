@@ -76,3 +76,21 @@
 [submodule "src/github.com/fatih/color"]
 	path = src/github.com/fatih/color
 	url = https://github.com/fatih/color
+[submodule "src/code.cloudfoundry.org/go-loggregator"]
+	path = src/code.cloudfoundry.org/go-loggregator
+	url = https://github.com/cloudfoundry/go-loggregator
+[submodule "src/code.cloudfoundry.org/go-diodes"]
+	path = src/code.cloudfoundry.org/go-diodes
+	url = https://github.com/cloudfoundry/go-diodes
+[submodule "src/google.golang.org/grpc"]
+	path = src/google.golang.org/grpc
+	url = https://github.com/grpc/grpc-go
+[submodule "src/golang.org/x/net"]
+	path = src/golang.org/x/net
+	url = https://go.googlesource.com/net
+[submodule "src/golang.org/x/text"]
+	path = src/golang.org/x/text
+	url = https://go.googlesource.com/text
+[submodule "src/google.golang.org/genproto"]
+	path = src/google.golang.org/genproto
+	url = https://github.com/google/go-genproto
