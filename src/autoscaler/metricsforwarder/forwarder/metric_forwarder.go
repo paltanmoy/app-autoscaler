@@ -15,9 +15,9 @@ type MetricForwarder struct {
 
 func NewMetricForwarder(conf *config.Config) (MetricForwarder, error) {
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
-		conf.LoggregatorCaCertFile,
-		conf.LoggregatorCertFile,
-		conf.LoggregatorKeyFile,
+		conf.LoggregatorConfig.CACertFile,
+		conf.LoggregatorConfig.ClientCertFile,
+		conf.LoggregatorConfig.ClientKeyFile,
 	)
 	if err != nil {
 		log.Fatal("Could not create TLS config", err)
@@ -25,7 +25,8 @@ func NewMetricForwarder(conf *config.Config) (MetricForwarder, error) {
 
 	client, err := loggregator.NewIngressClient(
 		tlsConfig,
-		loggregator.WithAddr("localhost:3458"),
+		loggregator.WithAddr(conf.MetronAddress),
+		loggregator.WithTag("origin", "autoscaler_metrics_forwarder"),
 	)
 
 	if err != nil {
@@ -43,10 +44,10 @@ func (mf MetricForwarder) EmitMetric(metric models.CustomMetric) {
 
 	gauge_tags := map[string]string{
 		"applicationGuid":     metric.AppGUID,
-		"applicationInstance": metric.InstanceID,
+		"applicationInstance": fmt.Sprint(metric.InstanceID),
 	}
 	options := []loggregator.EmitGaugeOption{
-		//	loggregator.WithGaugeAppInfo("app-guid", metric.AppGUID),
+		loggregator.WithGaugeAppInfo(metric.AppGUID, 0),
 		loggregator.WithEnvelopeTags(gauge_tags),
 		loggregator.WithGaugeValue(metric.Name, metric.Value, metric.Unit),
 	}

@@ -6,6 +6,6 @@ type CustomMetric struct {
 	Value      float64 `json:"value"`
 	Unit       string  `json:"unit"`
 	Timestamp  int64   `json:"timestamp"`
-	InstanceID string  `json:"instance_id"`
+	InstanceID uint32  `json:"instance_index"`
 	AppGUID    string  `json:"app_guid"`
 }

@@ -3,6 +3,8 @@ package noaa
 import (
 	"autoscaler/models"
 	"fmt"
+	"strconv"
+
 	"github.com/cloudfoundry/sonde-go/events"
 )
 
@@ -77,6 +79,24 @@ func GetInstanceMemoryUtilMetricFromContainerMetricEvent(collectAt int64, appId 
 			Name:          models.MetricNameMemoryUtil,
 			Unit:          models.UnitPercentage,
 			Value:         fmt.Sprintf("%d", int(float64(cm.GetMemoryBytes())/float64(cm.GetMemoryBytesQuota())*100+0.5)),
+			Timestamp:     event.GetTimestamp(),
+		}
+	}
+	return nil
+}
+
+func GetCustomMetricFromValueMetricEvent(collectAt int64, event *events.Envelope) *models.AppInstanceMetric {
+	vm := event.GetValueMetric()
+	if vm != nil {
+		vmTags := event.GetTags()
+		instanceId, _ := strconv.Atoi(vmTags["instance_id"])
+		return &models.AppInstanceMetric{
+			AppId:         vmTags["applicationGuid"],
+			InstanceIndex: uint32(instanceId),
+			CollectedAt:   collectAt,
+			Name:          vm.GetName(),
+			Unit:          vm.GetUnit(),
+			Value:         strconv.FormatFloat(vm.GetValue(), 'f', 4, 64),
 			Timestamp:     event.GetTimestamp(),
 		}
 	}
