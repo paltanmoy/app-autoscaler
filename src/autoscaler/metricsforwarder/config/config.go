@@ -8,7 +8,7 @@ import (
 )
 
 type Config struct {
-	ServerPort        string            `yaml:"server_port"`
+	ServerPort        int               `yaml:"server_port"`
 	LogLevel          string            `yaml:"log_level"`
 	MetronAddress     string            `yaml:"metron_address"`
 	LoggregatorConfig LoggregatorConfig `yaml:"loggregator"`
@@ -23,7 +23,7 @@ type LoggregatorConfig struct {
 const (
 	defaultLogLevel      = "info"
 	defaultMetronAddress = "127.0.0.1:3458"
-	defaultServerPort    = "7654"
+	defaultServerPort    = 6110
 )
 
 func LoadConfig(reader io.Reader) (*Config, error) {

@@ -90,13 +90,14 @@ func GetCustomMetricFromValueMetricEvent(collectAt int64, event *events.Envelope
 	if vm != nil {
 		vmTags := event.GetTags()
 		instanceId, _ := strconv.Atoi(vmTags["instance_id"])
+		metricValue := strconv.Itoa(int(vm.GetValue()))
 		return &models.AppInstanceMetric{
 			AppId:         vmTags["applicationGuid"],
 			InstanceIndex: uint32(instanceId),
 			CollectedAt:   collectAt,
 			Name:          vm.GetName(),
 			Unit:          vm.GetUnit(),
-			Value:         strconv.FormatFloat(vm.GetValue(), 'f', 4, 64),
+			Value:         metricValue,
 			Timestamp:     event.GetTimestamp(),
 		}
 	}

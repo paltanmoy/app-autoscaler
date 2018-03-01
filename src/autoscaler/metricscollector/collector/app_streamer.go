@@ -26,9 +26,12 @@ type appStreamer struct {
 	sumReponseTimes map[int32]int64
 	ticker          clock.Ticker
 	dataChan        chan *models.AppInstanceMetric
+	clientId        string
+	clientSecret    string
+	uaaEndpoint     string
 }
 
-func NewAppStreamer(logger lager.Logger, appId string, interval time.Duration, cfc cf.CfClient, noaaConsumer noaa.NoaaConsumer, sclock clock.Clock, dataChan chan *models.AppInstanceMetric) AppCollector {
+func NewAppStreamer(logger lager.Logger, appId string, interval time.Duration, cfc cf.CfClient, clientId string, clientSecret string, uaaEndpoint string, noaaConsumer noaa.NoaaConsumer, sclock clock.Clock, dataChan chan *models.AppInstanceMetric) AppCollector {
 	return &appStreamer{
 		appId:           appId,
 		logger:          logger,
@@ -40,6 +43,9 @@ func NewAppStreamer(logger lager.Logger, appId string, interval time.Duration, c
 		numRequests:     make(map[int32]int64),
 		sumReponseTimes: make(map[int32]int64),
 		dataChan:        dataChan,
+		clientId:        clientId,
+		clientSecret:    clientSecret,
+		uaaEndpoint:     uaaEndpoint,
 	}
 }
 
@@ -94,17 +100,16 @@ func (as *appStreamer) streamMetrics() {
 }
 
 func (as *appStreamer) readFirehose() {
-	uaaClient, err := uaago.NewClient("https://uaa.bosh-lite.com")
+	uaaClient, err := uaago.NewClient(as.uaaEndpoint)
 	if err != nil {
 		as.logger.Error("Error creating uaa client:", err)
 	}
 
 	var authToken string
-	authToken, err = uaaClient.GetAuthToken("example-nozzle", "example-nozzle", true)
+	authToken, err = uaaClient.GetAuthToken(as.clientId, as.clientSecret, true)
 	if err != nil {
 		as.logger.Error("Error getting oauth token: %s. Please check your username and password", err)
 	}
-	fmt.Println("AUth Token:", authToken)
 	eventChan, errorChan := as.noaaConsumer.Firehose("autoscalerFirhoseId", authToken)
 	as.ticker = as.sclock.NewTicker(as.collectInterval)
 	for {
@@ -134,7 +139,7 @@ func (as *appStreamer) readFirehose() {
 				if closeErr != nil {
 					as.logger.Error("close-noaa-connection", err, lager.Data{"appid": as.appId})
 				}
-				eventChan, errorChan = as.noaaConsumer.Firehose("autoscalerFirhoseId", "")
+				eventChan, errorChan = as.noaaConsumer.Firehose("autoscalerFirhoseId", authToken)
 				as.logger.Info("noaa-reconnected", lager.Data{"appid": as.appId})
 				err = nil
 			} else {
@@ -145,10 +150,8 @@ func (as *appStreamer) readFirehose() {
 }
 
 func (as *appStreamer) processEvent(event *events.Envelope) {
-	fmt.Println("**************** AppId: ", as.appId, "****** Event Type:", event.GetEventType())
 	if event.GetEventType() == events.Envelope_ContainerMetric {
 		as.logger.Debug("process-event-get-containermetric-event", lager.Data{"event": event})
-
 		metric := noaa.GetInstanceMemoryUsedMetricFromContainerMetricEvent(as.sclock.Now().UnixNano(), as.appId, event)
 		as.logger.Debug("process-event-get-memoryused-metric", lager.Data{"metric": metric})
 		if metric != nil {
@@ -168,11 +171,11 @@ func (as *appStreamer) processEvent(event *events.Envelope) {
 			as.sumReponseTimes[ss.GetInstanceIndex()] += (ss.GetStopTimestamp() - ss.GetStartTimestamp())
 		}
 	} else if event.GetEventType() == events.Envelope_ValueMetric {
-		as.logger.Debug("process-event-get-Envelope_ValueMetric-event", lager.Data{"event": event})
+		as.logger.Debug("process-event-get-value-metric-event", lager.Data{"event": event})
 		ss := event.GetValueMetric()
 		if ss != nil && event.GetOrigin() == "autoscaler_metrics_forwarder" {
 			valuemetric := noaa.GetCustomMetricFromValueMetricEvent(as.sclock.Now().UnixNano(), event)
-			as.logger.Info("process-event-get-custom-value-metric", lager.Data{"metric": valuemetric})
+			as.logger.Debug("process-event-get-custom-value-metric", lager.Data{"metric": valuemetric})
 			if valuemetric != nil {
 				as.dataChan <- valuemetric
 			}
@@ -181,7 +184,6 @@ func (as *appStreamer) processEvent(event *events.Envelope) {
 }
 
 func (as *appStreamer) computeAndSaveMetrics() {
-	fmt.Println("********** Compute and Save *********")
 	as.logger.Debug("compute-and-save-metrics", lager.Data{"message": "start to compute and save metrics"})
 	if len(as.numRequests) == 0 {
 		throughput := &models.AppInstanceMetric{

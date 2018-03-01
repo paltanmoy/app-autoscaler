@@ -1,16 +1,17 @@
 package main
 
 import (
+	alogger "autoscaler/logger"
 	"autoscaler/metricsforwarder/config"
-	"autoscaler/metricsforwarder/forwarder"
-	"autoscaler/metricsforwarder/handler"
+	"autoscaler/metricsforwarder/server"
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
 	"os"
 
-	"github.com/gorilla/mux"
+	"code.cloudfoundry.org/lager"
+	"github.com/tedsuo/ifrit"
+	"github.com/tedsuo/ifrit/grouper"
+	"github.com/tedsuo/ifrit/sigmon"
 )
 
 func main() {
@@ -36,19 +37,60 @@ func main() {
 	}
 	configFile.Close()
 
-	metricForwarder, err := forwarder.NewMetricForwarder(conf)
+	logger := initLoggerFromConfig(conf.LogLevel)
+
+	httpServer, err := server.NewServer(logger.Session("http_server"), conf)
 	if err != nil {
-		fmt.Println("failed to create metricforwarder", err)
+		logger.Error("failed to create http server", err)
 		os.Exit(1)
 	}
 
-	metricHandler := handler.NewMetricsHandler(metricForwarder)
-
-	router := mux.NewRouter().StrictSlash(true)
-	router.HandleFunc("/v1/metrics", metricHandler.PublishMetrics).Methods("POST")
-	var port string
-	if port = os.Getenv("PORT"); len(port) == 0 {
-		port = "3000"
+	members := grouper.Members{
+		{"http_server", httpServer},
 	}
-	log.Fatal(http.ListenAndServe(":"+port, router))
+
+	monitor := ifrit.Invoke(sigmon.New(grouper.NewOrdered(os.Interrupt, members)))
+
+	logger.Info("started")
+
+	err = <-monitor.Wait()
+	if err != nil {
+		logger.Error("exited-with-failure", err)
+		os.Exit(1)
+	}
+	logger.Info("exited")
+}
+
+func initLoggerFromConfig(logLevelConfig string) lager.Logger {
+	logLevel, err := getLogLevel(logLevelConfig)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to initialize logger: %s\n", err.Error())
+		os.Exit(1)
+	}
+	logger := lager.NewLogger("metricsforwarder")
+
+	keyPatterns := []string{"[Pp]wd", "[Pp]ass", "[Ss]ecret", "[Tt]oken"}
+
+	redactedSink, err := alogger.NewRedactingWriterWithURLCredSink(os.Stdout, logLevel, keyPatterns, nil)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create redacted sink", err.Error())
+	}
+	logger.RegisterSink(redactedSink)
+
+	return logger
+}
+
+func getLogLevel(level string) (lager.LogLevel, error) {
+	switch level {
+	case "debug":
+		return lager.DEBUG, nil
+	case "info":
+		return lager.INFO, nil
+	case "error":
+		return lager.ERROR, nil
+	case "fatal":
+		return lager.FATAL, nil
+	default:
+		return -1, fmt.Errorf("Error: unsupported log level:%s", level)
+	}
 }
