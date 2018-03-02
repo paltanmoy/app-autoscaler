@@ -171,7 +171,6 @@ func (as *appStreamer) processEvent(event *events.Envelope) {
 			as.sumReponseTimes[ss.GetInstanceIndex()] += (ss.GetStopTimestamp() - ss.GetStartTimestamp())
 		}
 	} else if event.GetEventType() == events.Envelope_ValueMetric {
-		as.logger.Debug("process-event-get-value-metric-event", lager.Data{"event": event})
 		ss := event.GetValueMetric()
 		if ss != nil && event.GetOrigin() == "autoscaler_metrics_forwarder" {
 			valuemetric := noaa.GetCustomMetricFromValueMetricEvent(as.sclock.Now().UnixNano(), event)

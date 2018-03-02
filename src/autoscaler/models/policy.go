@@ -37,12 +37,12 @@ func (p *PolicyJson) GetAppPolicy() *AppPolicy {
 }
 
 type ScalingPolicy struct {
-	InstanceMin  int            `json:"instance_min_count"`
-	InstanceMax  int            `json:"instance_max_count"`
-	ScalingRules []*ScalingRule `json:"scaling_rules"`
+	InstanceMin  int         `json:"instance_min_count"`
+	InstanceMax  int         `json:"instance_max_count"`
+	ScalingRules ScalingRule `json:"scaling_rules"`
 }
 
-type ScalingRule struct {
+type MetricPolicy struct {
 	MetricType            string `json:"metric_type"`
 	StatWindowSeconds     int    `json:"stat_window_secs"`
 	BreachDurationSeconds int    `json:"breach_duration_secs"`
@@ -52,25 +52,30 @@ type ScalingRule struct {
 	Adjustment            string `json:"adjustment"`
 }
 
-func (r *ScalingRule) StatWindow(defaultStatWindowSecs int) time.Duration {
-	if r.StatWindowSeconds <= 0 {
+type ScalingRule struct {
+	StandardMetrics []*MetricPolicy `json:"standard_metrics"`
+	CustomMetrics   []*MetricPolicy `json:"custom_metrics"`
+}
+
+func (m *MetricPolicy) StatWindow(defaultStatWindowSecs int) time.Duration {
+	if m.StatWindowSeconds <= 0 {
 		return time.Duration(defaultStatWindowSecs) * time.Second
 	}
-	return time.Duration(r.StatWindowSeconds) * time.Second
+	return time.Duration(m.StatWindowSeconds) * time.Second
 }
 
-func (r *ScalingRule) BreachDuration(defaultBreachDurationSecs int) time.Duration {
-	if r.BreachDurationSeconds <= 0 {
+func (m *MetricPolicy) BreachDuration(defaultBreachDurationSecs int) time.Duration {
+	if m.BreachDurationSeconds <= 0 {
 		return time.Duration(defaultBreachDurationSecs) * time.Second
 	}
-	return time.Duration(r.BreachDurationSeconds) * time.Second
+	return time.Duration(m.BreachDurationSeconds) * time.Second
 }
 
-func (r *ScalingRule) CoolDown(defaultCoolDownSecs int) time.Duration {
-	if r.CoolDownSeconds <= 0 {
+func (m *MetricPolicy) CoolDown(defaultCoolDownSecs int) time.Duration {
+	if m.CoolDownSeconds <= 0 {
 		return time.Duration(defaultCoolDownSecs) * time.Second
 	}
-	return time.Duration(r.CoolDownSeconds) * time.Second
+	return time.Duration(m.CoolDownSeconds) * time.Second
 }
 
 type Trigger struct {
