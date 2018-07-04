@@ -105,7 +105,7 @@ func NewCfClient(conf *CfConfig, logger lager.Logger, clk clock.Clock) CfClient 
 }
 
 func (c *cfClient) GetAuthToken() (string, error) {
-	authToken, err := c.uaaClient.GetAuthToken(c.conf.ClientId, c.conf.Secret, true)
+	authToken, err := c.uaaClient.GetAuthToken(c.conf.ClientId, c.conf.Secret, c.conf.SkipSSLValidation)
 	if err != nil {
 		c.logger.Error("Error getting oauth token, Please check your clientID and secret", err)
 		return "", err

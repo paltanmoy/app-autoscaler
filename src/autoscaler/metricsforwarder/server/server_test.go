@@ -75,7 +75,7 @@ var _ = Describe("Server", func() {
 			Expect(err).NotTo(HaveOccurred())
 		})
 
-		It("returns with a 201", func() {
+		It("returns with a 200", func() {
 			Expect(err).NotTo(HaveOccurred())
 			Expect(resp.StatusCode).To(Equal(http.StatusOK))
 			resp.Body.Close()

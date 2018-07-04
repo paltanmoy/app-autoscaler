@@ -9,14 +9,18 @@ import (
 	"code.cloudfoundry.org/lager"
 )
 
-type MetricForwarder struct {
+type MetricForwarder interface {
+	EmitMetric(*models.CustomMetric)
+}
+
+type metricForwarder struct {
 	client *loggregator.IngressClient
 	logger lager.Logger
 }
 
 const METRICS_FORWARDER_ORIGIN = "autoscaler_metrics_forwarder"
 
-func NewMetricForwarder(logger lager.Logger, conf *config.Config) (MetricForwarder, error) {
+func NewMetricForwarder(logger lager.Logger, conf *config.Config) (metricForwarder, error) {
 	tlsConfig, err := loggregator.NewIngressTLSConfig(
 		conf.LoggregatorConfig.CACertFile,
 		conf.LoggregatorConfig.ClientCertFile,
@@ -24,7 +28,7 @@ func NewMetricForwarder(logger lager.Logger, conf *config.Config) (MetricForward
 	)
 	if err != nil {
 		logger.Error("could-not-create-TLS-config", err)
-		return MetricForwarder{}, err
+		return metricForwarder{}, err
 	}
 
 	client, err := loggregator.NewIngressClient(
@@ -35,16 +39,16 @@ func NewMetricForwarder(logger lager.Logger, conf *config.Config) (MetricForward
 
 	if err != nil {
 		logger.Error("could-not-create-loggregator-client", err)
-		return MetricForwarder{}, err
+		return metricForwarder{}, err
 	}
 
-	return MetricForwarder{
+	return metricForwarder{
 		client: client,
 		logger: logger,
 	}, nil
 }
 
-func (mf MetricForwarder) EmitMetric(metric *models.CustomMetric) {
+func (mf metricForwarder) EmitMetric(metric *models.CustomMetric) {
 	mf.logger.Debug("custom-metric-emit-request-received:", lager.Data{"metric": metric})
 
 	gauge_tags := map[string]string{
