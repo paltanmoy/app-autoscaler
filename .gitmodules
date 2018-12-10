@@ -124,12 +124,12 @@
 [submodule "src/golang.org/x/crypto"]
 	path = src/golang.org/x/crypto
 	url = https://github.com/golang/crypto
-[submodule "src/code.cloudfoundry.org/rfc5424"]
-	path = src/code.cloudfoundry.org/rfc5424
-	url = https://github.com/cloudfoundry-incubator/rfc5424
 [submodule "src/github.com/golang/protobuf"]
 	path = src/github.com/golang/protobuf
 	url = https://github.com/golang/protobuf
 [submodule "src/github.com/patrickmn/go-cache"]
 	path = src/github.com/patrickmn/go-cache
 	url = https://github.com/patrickmn/go-cache
+[submodule "src/code.cloudfoundry.org/rfc5424"]
+	path = src/code.cloudfoundry.org/rfc5424
+	url = https://github.com/cloudfoundry-incubator/rfc5424
