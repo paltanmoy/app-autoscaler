@@ -313,12 +313,25 @@ var _ = Describe("Routes", func() {
 			})
 		})
 	})
-	Context("PostCustomMetricsRoute", func() {
-		Context("when provide correct route variable", func() {
+
+	Describe("MetricServerRoutes", func() {
+		Context("EnvelopeReportRouteName", func() {
 			It("should return the correct path", func() {
-				path, err := routes.MetricsForwarderRoutes().Get(routes.PostCustomMetricsRouteName).URLPath("appid", testAppId)
+				path, err := routes.MetricServerRoutes().Get(routes.EnvelopeReportRouteName).URLPath()
 				Expect(err).NotTo(HaveOccurred())
-				Expect(path.Path).To(Equal("/v1/apps/" + testAppId + "/metrics"))
+				Expect(path.Path).To(Equal("/v1/envelopes"))
+			})
+		})
+	})
+
+	Describe("CustomMetricsRoute", func() {
+		Context("PostCustomMetricsRouteName", func() {
+			Context("when provide correct route variable", func() {
+				It("should return the correct path", func() {
+					path, err := routes.MetricsForwarderRoutes().Get(routes.PostCustomMetricsRouteName).URLPath("appid", testAppId)
+					Expect(err).NotTo(HaveOccurred())
+					Expect(path.Path).To(Equal("/v1/apps/" + testAppId + "/metrics"))
+				})
 			})
 		})
 	})
